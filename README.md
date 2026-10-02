@@ -9,8 +9,44 @@ Selection challenges for the **AICTE National Internship – Eastern Command (Ko
 | # | Challenge | Domain | Status | Folder |
 |---|-----------|--------|--------|--------|
 | 1 | Malware analysis | Reverse engineering / IOCs | ⏳ Planned | `challenge 1/` (sample not committed) |
-| 2 | Log analysis — who was compromised and how | Web forensics | ⏳ Planned | `challenge 2/` |
+| 2 | Log analysis — who was compromised and how | Endpoint threat hunting | ✅ Complete | [`challenge 2/`](challenge%202/) |
 | 3 | Denoise & transcribe an intercepted audio file | Signal processing / SIGINT | ✅ Complete | [`challenge 3/`](challenge%203/) |
+
+---
+
+## Challenge 2 — Endpoint Log Analysis: Who Is Compromised and How
+
+**Result:** found **8 compromised endpoints** out of 248 across 7 units, 12 more that received malware the antivirus caught, and several antivirus false positives. Three of the most serious cases were missed or not stopped by the antivirus.
+
+| Metric | Value |
+|--------|-------|
+| Input | 3 agent logs: web activity (2,812,118 rows), endpoint security (23,540), USB (8) |
+| Coverage | 248 Linux desktops · 19 units · 1–26 Sep 2026 |
+| Unique destinations analysed | 18,606 |
+| Malicious quarantine records | 134 rows → 64 unique files on 33 endpoints (after de-duplication) |
+| Stack | Python · pandas · PowerShell · VirusTotal (passive lookups only) |
+
+### Approach
+
+1. **Verify evidence:** SHA-256 of every log checked against the provided `SHA256SUMS`.
+2. **Security log:** parse and de-duplicate quarantine records, separate real signature matches from file-type quarantines, find failed antivirus actions.
+3. **Web log, six hunts:** public-IP lookup services, remote-access tools, fake-CDN domain patterns, beaconing (coefficient of variation of contact intervals), per-host timelines.
+4. **Prevalence:** a destination contacted by only one of 248 endpoints is a strong compromise signal.
+5. **Correlate and verify:** join all logs per endpoint, check indicators passively on VirusTotal, and rule out false positives with a specific explanation.
+
+### Key findings
+
+| Endpoint | How it was compromised | Antivirus caught it? |
+|----------|------------------------|----------------------|
+| host-de52 | Unauthorised anonymising proxy tunnel: config from GitHub, 3 IP lookups in 12 s, 23 foreign nodes no other host contacted | ❌ No alert |
+| host-9a4f | Malicious `Final_Documents.zip` → AnyDesk remote-access sessions on 5 days | Zip only |
+| host-423b | Phishing email; quarantine failed on 14 consecutive nights | ❌ Failed |
+| host-508b, host-93eb | `.desktop` launcher files disguised as documents (APT36-style lure) | Type rule only, no signature |
+| host-e53b, host-a976, host-a61e | Trojanised application launchers (persistence) | ✅ |
+
+**False positives identified:** GNOME `recently-used.xbel` (identical hash on 9 machines), Microsoft Edge Wallet scripts, vendor printer drivers, and a "beacon" that was a Webex call left open.
+
+Scripts: [`analyse_security.py`](challenge%202/analyse_security.py) · [`analyse_web.py`](challenge%202/analyse_web.py). Raw logs are not committed.
 
 ---
 
@@ -95,6 +131,10 @@ python -m whisper intercept_clean.wav --model small
 ```
 ├── README.md
 ├── Readme.txt                  # original challenge brief
+├── challenge 2/
+│   ├── analyse_security.py     # antivirus / quarantine / web-filter analysis
+│   ├── analyse_web.py          # six threat hunts over 2.8M web-log rows
+│   └── output/                 # findings tables, reports, VirusTotal notes
 └── challenge 3/
     ├── denoise_intercept.py    # denoising pipeline
     ├── noise_identification.png

@@ -1,0 +1,23 @@
+VirusTotal passive lookups - 03 Oct 2026 (search only; nothing uploaded, no domain visited)
+
+FILE HASHES (SHA-256)
+1. Journey Request.desktop  (host-508b)   ecaa09f6...6cea7d5  -> not found on VT
+2. Approve Booking.desktop  (host-93eb)   8798164c...92c01267 -> not found on VT
+3. libreoffice-calc.desktop (host-e53b, host-a976) 93ffd792...4c664548 -> not found on VT
+4. Final_Documents.zip      (host-9a4f)   404ee575...9b9145088 -> not found on VT
+5. recently-used.xbel       (9 hosts)     5e10b349...9e50adc9c -> not found on VT
+=> No public record; classification relies on behavioural evidence in the logs.
+
+DOMAINS (host-de52)
+6. bmtr.org
+   - 1/91 vendors malicious (Fortinet: Malware); 2 suspicious (alphaMountain.ai, SOCRadar)
+   - Registrar: Amazon Registrar, Inc.; created ~3 months ago (~Jul 2026)
+   - Tags: content delivery, top-10K
+7. cdnaccelerate.xyz
+   - 0/91 malicious; 1 suspicious (Forcepoint ThreatSeeker)
+   - Registrar: NAMECHEAP INC; created ~1 year ago
+   - Tags: content delivery, elevated exposure, "Anonymizers (alphaMountain.ai)", top-100K
+
+Interpretation: alphaMountain categorises cdnaccelerate.xyz as an ANONYMIZER and Fortinet flags bmtr.org as malware.
+Together with the node-latency-test behaviour (10 country servers in 6 s) this fits an unauthorised
+proxy/VPN tunnelling client on host-de52 that bypasses the web filter; a C2 implant cannot be ruled out.

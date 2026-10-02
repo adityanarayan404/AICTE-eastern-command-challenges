@@ -1,0 +1,114 @@
+CHALLENGE 1 - MALWARE ANALYSIS NOTES (03 Oct 2026)
+Analysis VM: VirtualBox + REMnux (General OVA, SHA-256 verified), network Not Attached, snapshot "clean - before sample".
+Archive: victim_artifacts.7z  SHA-256 12c8c12aebf38e279ef5925f10c3023f2cfe08fbd31020967bfa7d0a2e2f38a7 (matched on host and in VM)
+Transfer: VirtualBox shared folder, mounted in VM with -o ro, removed after copy. (Share itself was set to Full access by mistake.)
+
+CONTENTS (7 files)
+Prefetch (Windows execution evidence; MAM-compressed, file says "data"):
+  AEXINSTALLPRECHECK.EXE-54DF87EA.pf  mtime Jun 3 02:50   sha256 8defb55dfaaa8af617ac6e222f02f24d3fca35644c74c36f5f8621f309bb0a88
+  CD DRIVE.EXE-486ED731.pf            mtime Jul 8 07:05   sha256 09b9eea30cbca9bfa8b111555ab4e60c6c458993c0f2efdda8227ac301720376
+  KFJUUWORMM.EXE-114B5780.pf          mtime Jul 8 07:05   sha256 8b10602ae7f8649b0128e2d6c29cdfea99720accedac48c4c60558d639f8cdf2
+  MHYMHQMUDY.EXE-056758E4.pf          mtime May 28 12:07  sha256 7c873b2810bd4595bea4871afa0a4ac5b1679e07e303f8ddcff918d6f0eeb994
+  MQMJXFJVPE.EXE-DC678655.pf          mtime Jul 8 07:01   sha256 e78581670257809cd0b1d534ac00d0b3a73ab0a14f5ddd2e9f8b494a2ad54ea7
+  YVWPFLNRPH.EXE-EF7DF8CD.pf          mtime Jul 8 07:03   sha256 84df834493ce4020bac49e00a45ee714faf8023f14020c1a24e2d719cff0ae74
+  (mtimes are archive timestamps in VM local time/UTC - confirm with a prefetch parser)
+victim_samples.zip  sha256 dba06b486c6449fe4e6a9a35239173ff965f04d5ad2fa6f2e2b0f0fd6f6ea31d  (no password)
+  KFJUUWORMM.exe      408,984 B   PE32 GUI, 7 sections
+  LMIGuardianDll.dll  1,864,192 B PE32 DLL, 11 sections
+  BLOGYZOBEU.dat      5,368,012 B data
+
+VIRUSTOTAL (hash search only, nothing uploaded)
+KFJUUWORMM.exe  sha256 1397b2f7014900d2b203bda64816accbd4211dd6ce347479ac169f683e1a2f61
+  0/71. MD5 f8e8932263c7289bc8069f897a4c71eb  SHA1 42a7192f31a3a36b31c3094f9d63f2842824b005
+  VT names: LMIGuardianSvc.exe, LMIGuardianSvc, KFJUUWORMM.exe, 18xzo34.exe
+  Version info: Copyright (c) 1998-2018 LogMeIn, Inc.; Product/Description LMIGuardianSvc
+  Creation time 2018-10-15 10:31:50 UTC. VT signature check: "File is not signed".
+  Sandbox MITRE: T1129 Shared Modules, T1055 Process Injection, T1027 Obfuscated Files, T1071 App Layer Protocol
+  => legitimate LogMeIn Guardian service binary, renamed - the side-loading host.
+
+LMIGuardianDll.dll  sha256 1df53ad99ab1ab4172ed1aaf2722263c2a2dc70d354e680bfd4f0e40244ebdc5
+  45/70 malicious. Label trojan.zusy/misc; categories trojan, dropper; families zusy, misc, agtr; tags pedll, spreader
+  MD5 7e598d681d563f9c3c1611e95eed4448  SHA1 2d57d822b380383e25cd023f189dc50d3d258827
+  Creation time 2024-10-22 16:43:38 UTC; compiled with Visual Studio 2022 (17.6)
+  Contacted domains: cl-glcb907925.gcdn.co (1/91, reg. 2014, Safenames; gcdn.co = G-Core CDN)
+                     eip-terr-na.cdp1.digicert.com, nexusrules.officeapps.live.com (benign Windows/sandbox noise)
+  Contacted IPs: 92.223.96.6 (1/91, AS199524 G-Core), 150.171.109.145/.178, 150.171.110.6/.145/.193/.210 (AS8075 Microsoft),
+                 23.11.32.159 (AS33905 Akamai)  -> G-Core domain/IP = likely C2; Microsoft/Akamai = sandbox OS noise
+  Sandbox MITRE: T1574 Hijack Execution Flow (DLL side-loading), T1055 Process Injection, T1027 Obfuscation,
+                 T1218 System Binary Proxy Execution, T1033 System Owner/User Discovery, T1082 System Info Discovery,
+                 T1071 Application Layer Protocol; network: 3 DNS
+  Community: 1 vote malicious, no comments.
+
+BLOGYZOBEU.dat  sha256 ac8bf64655e6ed9b91099f170367a5623cbac9c31da0550bdd6fa413ec2e31ee
+  0/61. MD5 22346172a5b6ead1710d460f9b1ecbad  SHA1 4dbf933735a28d5f63ce68a2fa525aefdf5a00d7. File type unknown.
+  VT "Dropped files" (3): 8867da7979439f0451616b26434ed910.pe (Win32 EXE, 39/72), v0m8fdkt.exe (Win32 DLL, 30/72),
+                          3k3qpcw.exe (Win32 DLL, 36/72)
+  => encrypted container whose decoded contents are detected malware.
+
+CAPA (own static analysis in REMnux) - LMIGuardianDll.dll
+  ATT&CK: Defense Evasion T1027, T1027.005 (indicator removal from tools); Discovery T1083 file/dir, T1057 process,
+          T1082 system info, T1614 system location; Execution T1059 command/scripting interpreter, T1129 shared modules
+  MBC: Anti-static analysis - argument obfuscation B0032.020, stack strings B0032.017
+       Cryptography - Encrypt Data::RC4 C0027.009, RC4 PRGA C0021.004
+       Data - non-cryptographic hash FNV C0030.005 (API hashing)
+       Discovery - enumerate PE sections B0046.001, file/dir E1083, system info E1082
+       Execution - command/scripting interpreter E1059
+       File system - get attributes, read, write; Memory - allocate; OS - set env variable
+       Process - TLS alloc/set, create thread, terminate process
+  => RC4 routine = decryptor for BLOGYZOBEU.dat (supports side-loading chain from our own analysis)
+  Capability table (saved in VM: ~/case/capa_dll.txt):
+    contain obfuscated stackstrings | get geographical location (4) | encrypt data using RC4 PRGA | hash data using fnv
+    debug build | .tls section | accept command line arguments | interact with driver via IOCTL
+    query env var (2) | set env var (2) | get common file path (3) | set current directory | check if file exists
+    enumerate files on Windows (2) | get file attributes | read file (3) | write file (6) | print debug messages (3)
+    get process heap flags | get process heap force flags (anti-debug) | TLS get/set/alloc | terminate process (5)
+    create thread | access PEB ldr_data | link function at runtime (8) | linked against C++ regex library
+    enumerate PE sections | parse PE header (2) | create executable heap (load-code/shellcode)
+  => Loader chain from our own analysis: API resolution via PEB walk + FNV hashing, anti-debug heap-flag checks,
+     geolocation check, RC4 decryption of payload (BLOGYZOBEU.dat), executable heap + PE parsing = in-memory
+     (fileless) execution of decrypted payload; file enumerate/write + IOCTL consistent with USB propagation.
+
+EXIFTOOL (own check in REMnux) - KFJUUWORMM.exe
+  Product Version Number 10.1.0.1744 | Company Name LogMeIn, Inc. | File Description LMIGuardianSvc
+  Original File Name LMIGuardianSvc.exe | Product Name LMIGuardianSvc | Product Version 10.1.1744
+  => confirms independently of VT: genuine LogMeIn Guardian service binary renamed to KFJUUWORMM.exe
+
+STRINGS - LMIGuardianDll.dll (strings -n 8 | grep http|gcdn|.com|.exe|.dat|usb|drive)
+  Only "HttpMain" (x2). No plain-text URLs/domains/file names => strings hidden (matches capa stack-string
+  obfuscation); "HttpMain" suggests an HTTP-based communication routine.
+
+XXD HEADERS
+  KFJUUWORMM.exe starts 4d5a 9000 ... "MZ" = normal Windows PE header
+  BLOGYZOBEU.dat starts 7d8d 1cd4 7e8d 1cd4 6900 0000 f387 3bdc ... no known file signature => encrypted blob
+  (consistent with capa RC4 routine in the DLL and VT extracting 3 PEs from it)
+
+PREFETCH (parsed on Windows host with own parse_prefetch.py using ntdll XPRESS-Huffman; full output prefetch_report.txt)
+  Only the 6 .pf extracted on host (py7zr, by name); hashes matched the VM copies. victim_samples.zip never extracted on host.
+  All version 31 (Windows 10/11). Times UTC (IST = +5:30).
+  Victim: system volume serial AA5D48C0 (created 2024-11-23); users CLKSTG_3CDU (SID S-1-5-21-2086004240-328435989-1007200454-822772)
+          and ABC (SID S-1-5-21-4100445763-593396124-2566555558-1001). Seqrite AV installed (Program Files\Seqrite\GGC).
+  CD DRIVE.EXE - run count 6: 2026-03-18 04:20:21, 05-28 08:23:48, 05-28 12:07:23, 07-08 07:01:20, 07-08 07:03:02, 07-08 07:05:02
+     Ran from 3 REMOVABLE volumes (no volume creation time): serials 7A65B5AE, 999F4844, 9DD2E6BC  => USB drives
+     On each USB: two nested folders with invisible one-character names - <U+200D zero-width joiner>\<U+202C pop
+     directional formatting>\ - so they look nameless/blank in Explorer, holding
+       JBOXIXV.LOG, VBFSTBM.PDF, PTVAGIL.TXT (7A65B5AE); QYSYRGN.LOG, SKRNPKY.PDF, PTVAGIL.TXT (999F4844); CKFGOEP.LOG (9DD2E6BC)
+     Drops into C:\Users\<user>\AppData\Local\Temp\_READY_TEMP_\ : <10-letter>.EXE + LMIGUARDIANDLL.DLL + <10-letter>.DAT
+       KFJUUWORMM.EXE/BLOGYZOBEU.DAT, YVWPFLNRPH.EXE/RTHWRJJLQY.DAT, MHYMHQMUDY.EXE/WQLLSCJNHJ.DAT,
+       MQMJXFJVPE.EXE/GSJCSEQECW.DAT, XSBUFKHSLJ.EXE/KSPOCFWVJY.DAT, and Users\ABC\...\_READY_TEMP_\MRPSUWDTHN.EXE
+     Also touches Recycle Bin metadata ($Recycle.Bin\<SID>\$I* files, $I06NGYC.CSV) and EXPLORER.EXE
+  Each random EXE ran ONCE, seconds after a CD DRIVE.EXE run, loaded LMIGUARDIANDLL.DLL + its .DAT, wrote a temp file,
+  then installed a persistent copy in C:\ProgramData\<7 random>\ (<7 random>.EXE + <7 random>.DAT + LMIGUARDIANDLL.DLL):
+     MHYMHQMUDY.EXE 2026-05-28 12:07:27 -> temp BJFYLCT.BPM -> C:\ProgramData\FOAJBLK\LPIEPNQ.EXE, RBUAYCY.DAT
+     MQMJXFJVPE.EXE 2026-07-08 07:01:25 -> temp XILKMCY.LGN -> C:\ProgramData\CDDALPH\FEIYOIZ.EXE, XKGSQQC.DAT
+     YVWPFLNRPH.EXE 2026-07-08 07:03:02 -> temp DNTICSQ.KBA -> C:\ProgramData\XKJBCPY\INKHQIO.EXE, VGNCGJC.DAT
+     KFJUUWORMM.EXE 2026-07-08 07:05:02 -> temp RJIVLZW.XQH -> C:\ProgramData\MILYIIF\KDUKZNF.EXE, UCUBVEQ.DAT
+  AEXINSTALLPRECHECK.EXE - run 1, 2026-06-03 02:50:30 from C:\Windows\Temp\AEX_{...}.TMP, touches Symantec Agent logs
+     => Symantec/Altiris management agent installer = BENIGN (not part of infection)
+
+WORKING HYPOTHESIS
+DLL side-loading triad: renamed signed-looking LogMeIn binary loads malicious LMIGuardianDll.dll, which decrypts
+BLOGYZOBEU.dat and injects the payload. "spreader" tag + "CD DRIVE.EXE" + 4 random 10-letter EXEs run within 4 min
+on 8 Jul => self-propagating (likely USB) infection. Pattern resembles PlugX-style side-loading; not yet confirmed.
+
+SCREENSHOTS RECEIVED (in chat): VT exe detection/details/relations/behavior; VT dll detection/details/relations/
+behavior/community; VT dat detection/details/relations; VM ip a; VM hash match; VM extraction + file listing.

@@ -8,9 +8,52 @@ Selection challenges for the **AICTE National Internship – Eastern Command (Ko
 
 | # | Challenge | Domain | Status | Folder |
 |---|-----------|--------|--------|--------|
-| 1 | Malware analysis | Reverse engineering / IOCs | ⏳ Planned | `challenge 1/` (sample not committed) |
+| 1 | Malware analysis | Static malware analysis / DFIR | ✅ Complete | [`challenge 1/`](challenge%201/) (samples not committed) |
 | 2 | Log analysis — who was compromised and how | Endpoint threat hunting | ✅ Complete | [`challenge 2/`](challenge%202/) |
 | 3 | Denoise & transcribe an intercepted audio file | Signal processing / SIGINT | ✅ Complete | [`challenge 3/`](challenge%203/) |
+
+---
+
+## Challenge 1 — Malware Analysis: USB-Spread DLL Side-Loading Loader
+
+**Result:** identified the sample as a **USB-propagating worm that uses DLL side-loading**. Reconstructed the full infection chain on the victim PC from its Windows Prefetch records: 6 runs from 3 different USB drives and 4 persistent copies. The installed antivirus did not stop it.
+
+| Metric | Value |
+|--------|-------|
+| Input | `victim_artifacts.7z`: 6 Windows Prefetch files + 3 samples (EXE, DLL, encrypted DAT) |
+| Environment | REMnux VM in VirtualBox, network not attached, snapshot before the sample, hash-verified transfer |
+| Analysis type | Static only: samples never executed, never uploaded |
+| Key verdict | Malicious DLL 45/70 on VirusTotal (`trojan.zusy`, dropper, spreader); host EXE is a renamed legitimate LogMeIn binary |
+| Stack | REMnux · capa · exiftool · strings · xxd · Python (Prefetch parser) · VirusTotal (hash search only) |
+
+### Approach
+
+1. **Isolate:** REMnux with no network; the sample moved in through a read-only mount and SHA-256 checked on both sides.
+2. **Triage:** `file`, `xxd`, `exiftool`, `strings`. The EXE's metadata reveals it is LogMeIn's `LMIGuardianSvc.exe`, renamed.
+3. **Capabilities:** capa on the DLL shows API hashing (PEB walk + FNV), anti-debug checks, a geolocation check, **RC4 decryption** and an **executable heap** (in-memory shellcode).
+4. **Reputation:** VirusTotal hash lookups, sandbox behaviour and contacted infrastructure.
+5. **Execution evidence:** my own [`parse_prefetch.py`](challenge%201/parse_prefetch.py) decompresses Windows 10/11 Prefetch (MAM / XPRESS-Huffman via `ntdll`) and recovers run counts, run times, source volumes and every file each program touched.
+
+### Infection chain
+
+```
+Infected USB drive (fake "CD DRIVE.EXE", real files in invisible-Unicode-named folders)
+   │  user double-clicks — 6 runs: 18 Mar, 28 May ×2, 8 Jul ×3
+   ▼
+%LOCALAPPDATA%\Temp\_READY_TEMP_\  ←  random EXE (renamed LogMeIn) + LMIGuardianDll.dll + encrypted .DAT
+   │  0–5 s later
+   ▼
+Renamed EXE runs → Windows side-loads the malicious DLL (T1574.002)
+   │
+   ▼
+DLL: anti-analysis → RC4-decrypts the .DAT → runs payload in memory
+   ├─ Persistence: C:\ProgramData\<random>\ (4 copies)
+   └─ Discovery + C2: gcdn[.]co / 92.223.96.6 (VirusTotal sandbox)
+```
+
+**Ruled out:** `AEXINSTALLPRECHECK.EXE` in the Prefetch set is a benign Symantec/Altiris agent installer.
+
+Files: [`parse_prefetch.py`](challenge%201/parse_prefetch.py) · [`prefetch_report.txt`](challenge%201/prefetch_report.txt) · [`notes.txt`](challenge%201/notes.txt). Malware samples and raw Prefetch files are not committed.
 
 ---
 
@@ -122,7 +165,7 @@ python denoise_intercept.py          # → intercept_clean.wav, before_after.png
 python -m whisper intercept_clean.wav --model small
 ```
 
-> Audio files (`*.wav`) and challenge archives (`*.7z`) are excluded from version control via `.gitignore`.
+> Audio files (`*.wav`), challenge archives (`*.7z`), raw logs and raw Prefetch files are excluded from version control via `.gitignore`.
 
 ---
 
@@ -131,6 +174,10 @@ python -m whisper intercept_clean.wav --model small
 ```
 ├── README.md
 ├── Readme.txt                  # original challenge brief
+├── challenge 1/
+│   ├── parse_prefetch.py       # Windows 10/11 Prefetch decoder (own script)
+│   ├── prefetch_report.txt     # decoded execution records
+│   └── notes.txt               # findings, hashes, IOCs
 ├── challenge 2/
 │   ├── analyse_security.py     # antivirus / quarantine / web-filter analysis
 │   ├── analyse_web.py          # six threat hunts over 2.8M web-log rows
